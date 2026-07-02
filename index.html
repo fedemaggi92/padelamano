@@ -85,13 +85,20 @@ footer{color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(
     <div class="field"><label>Marro (%)</label><input type="number" id="shM" value="10"></div>
   </div></div>
 
+  <div class="card"><h2><span class="icon">🤝</span>Buy-out (post-cliff)</h2><div class="fgrid">
+    <div class="field"><label>Múltiplo EBITDA (x)</label><input type="number" id="mult" value="3"></div>
+    <div class="field"><label>Mes de compra (desde apertura)</label><input type="number" id="buyMes" value="30"></div>
+    <div class="field"><label>Compra Fede (% adic., máx 23,3)</label><input type="number" id="buyF" value="0"></div>
+    <div class="field"><label>Compra Marro (% adic., máx 23,3)</label><input type="number" id="buyM" value="0"></div>
+  </div></div>
+
   <div class="card"><h2><span class="icon">📅</span>Cronograma</h2><div class="fgrid">
     <div class="field"><label>Mes de firma</label><input type="month" id="firma" value="2026-08"></div>
     <div class="field"><label>Meses de trámites (sin gastos)</label><input type="number" id="mTram" value="1"></div>
     <div class="field"><label>Meses de gracia / obra</label><input type="number" id="mGracia" value="3"></div>
     <div class="field"><label>Meses pre-apertura pagando todo</label><input type="number" id="mPre" value="0"></div>
     <div class="field wide"><label>Expensas + servicios durante obra (ARS/mes)</label><input type="number" id="gObra" value="1500000"></div>
-    <div class="field"><label>Horizonte post-apertura (meses)</label><input type="number" id="horiz" value="48"></div>
+    <div class="field"><label>Horizonte post-apertura (meses)</label><input type="number" id="horiz" value="120"></div>
   </div></div>
 
   <div class="card"><h2><span class="icon">🏗</span>Capex (USD)</h2><div class="fgrid">
@@ -218,6 +225,21 @@ footer{color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(
     <div class="cv" style="height:260px"><canvas id="pb" role="img" aria-label="Evolución mensual del saldo pendiente del inversor y de los dividendos acumulados de los operadores">Evolución del saldo del inversor.</canvas></div>
   </div>
 
+  <div class="card">
+    <h2><span class="icon" style="background:var(--yellow);color:#1a1d27">$</span>Buy-out y valuación</h2>
+    <div id="buypanel" style="font-size:13px"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon" style="background:var(--green)">≡</span>Ganancia acumulada por socio (USD)</h2>
+    <div style="display:flex;gap:14px;font-size:12px;color:var(--dim);margin-bottom:8px;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:5px"><i style="width:10px;height:10px;border-radius:2px;background:#a29bfe;display:inline-block"></i>Nico (neto de inversión)</span>
+      <span style="display:flex;align-items:center;gap:5px"><i style="width:10px;height:10px;border-radius:2px;background:#00cec9;display:inline-block"></i>Fede</span>
+      <span style="display:flex;align-items:center;gap:5px"><i style="width:10px;height:10px;border-radius:2px;background:#feca57;display:inline-block"></i>Marro</span>
+    </div>
+    <div class="cv" style="height:260px"><canvas id="soc" role="img" aria-label="Ganancia acumulada de cada socio en dólares a lo largo de la proyección, con la línea del inversor arrancando en negativo por su inversión">Ganancia acumulada por socio.</canvas></div>
+  </div>
+
 </div>
 </div>
 
@@ -233,8 +255,8 @@ Supuestos del modelo: todo en pesos de hoy, convertido a USD al tipo de cambio d
 var $=function(id){return document.getElementById(id)};
 var g=function(id){var v=parseFloat($(id).value);return isNaN(v)?0:v};
 var fmtU=function(v){return (v<0?'-':'')+'US$ '+Math.round(Math.abs(v)).toLocaleString('es-AR')};
-var wf=null,pb=null;
-var IDS=['fx','tasa','cliff','shN','shF','shM','capRef','firma','mTram','mGracia','mPre','gObra','horiz','cxObra','cxDemo','cxCancha','cxPk','cxCama','cxMob','cxHab','cxMkt','cxWC','cxImp','nPadel','pPeak','pOff','pFds','tPeak','tOff','tFds','dHab','dFds','oPeak','oOff','oFds','rampF0','rampM','nPk','tPk','pPk','oPk','trN','trJ','trI','trP','trT','trC','trTk','bC','bTk','bCogs','piCamas','piH','piD','piP','salaX','shop','shopC','alq','exp','sOp','sEmp','elec','serv','mant','mkt','plat','seg','cont','soft','otros','vPlat','vPago','vCons','iibb','gan'];
+var wf=null,pb=null,soc=null;
+var IDS=['fx','tasa','cliff','shN','shF','shM','capRef','firma','mTram','mGracia','mPre','gObra','horiz','cxObra','cxDemo','cxCancha','cxPk','cxCama','cxMob','cxHab','cxMkt','cxWC','cxImp','nPadel','pPeak','pOff','pFds','tPeak','tOff','tFds','dHab','dFds','oPeak','oOff','oFds','rampF0','rampM','nPk','tPk','pPk','oPk','trN','trJ','trI','trP','trT','trC','trTk','bC','bTk','bCogs','piCamas','piH','piD','piP','salaX','shop','shopC','alq','exp','sOp','sEmp','elec','serv','mant','mkt','plat','seg','cont','soft','otros','vPlat','vPago','vCons','iibb','gan','mult','buyMes','buyF','buyM'];
 
 function loadURL(){
   var q=new URLSearchParams(location.search);
@@ -263,7 +285,8 @@ function recalc(){
  var alqARS=g('alq')*fx;
  var fijos=alqARS+g('exp')+g('sOp')+g('sEmp')+g('elec')+g('serv')+g('mant')+g('mkt')+g('plat')+g('seg')+g('cont')+g('soft')+g('otros');
  var bal=capex,cliffDone=false,cliffM=-1,recM=-1,divOps=0,perd=0,wcFlag=false,stab=null;
- var labels=[],serBal=[],serOps=[];
+ var shFc=g('shF'),shMc=g('shM'),shNc=g('shN'),cumN=-capex,cumF=0,cumM=0,bought=false,buyInfo=null,ebHist=[];
+ var labels=[],serBal=[],serOps=[],serN=[],serF=[],serM=[];
  for(var m=0;m<total;m++){
   var netARS=0;
   if(m<g('mTram')){netARS=0}
@@ -289,6 +312,7 @@ function recalc(){
    var ebitda=ing-vars-fijos-iibb;
    var imp=ebitda>0?g('gan')/100*ebitda:0;
    netARS=ebitda-imp;
+   ebHist.push(ebitda/fx);
    if(k===Math.round(g('rampM'))||(stab===null&&m===total-1)){
      stab={ing:ing,vars:vars,fijos:fijos,iibb:iibb,ebitda:ebitda,imp:imp,net:netARS,
            lines:[['Canchas pádel',ingCan,'#6c5ce7'],['Pickleball',ingPk,'#a29bfe'],['Bar',ingBar,'#00cec9'],['Torneos',ingTr,'#feca57'],['Pilates + salas',ingPi+g('salaX'),'#ff9f43'],['Shop',ingShop,'#ff6b6b']]};
@@ -297,14 +321,26 @@ function recalc(){
   var netU=netARS/fx;
   bal=bal*(1+r);
   if(m>=A&&!cliffDone){if((m-A)>=g('cliff')||bal<=0){cliffDone=true;cliffM=m}}
+  if(cliffDone&&!bought&&m>=Math.max(A+Math.round(g('buyMes')),cliffM)&&ebHist.length>0){
+   var n12=Math.min(12,ebHist.length),sum12=0;
+   for(var q=ebHist.length-n12;q<ebHist.length;q++)sum12+=ebHist[q];
+   var eb12=sum12/n12*12;
+   var val=eb12*g('mult');
+   var bF=Math.max(0,Math.min(g('buyF'),23.3)),bM2=Math.max(0,Math.min(g('buyM'),23.3));
+   var cF=val*bF/100,cM=val*bM2/100;
+   buyInfo={mes:m,eb12:eb12,val:val,bF:bF,bM:bM2,cF:cF,cM:cM};
+   if(bF+bM2>0){shFc+=bF;shMc+=bM2;shNc-=bF+bM2;cumN+=cF+cM;cumF-=cF;cumM-=cM}
+   bought=true;
+  }
   if(netU>0&&m>=A){
-   if(!cliffDone){bal-=netU}
-   else{bal-=netU*g('shN')/100;divOps+=netU*(g('shF')+g('shM'))/100}
+   if(!cliffDone){bal-=netU;cumN+=netU}
+   else{var pN=netU*shNc/100;bal-=pN;cumN+=pN;cumF+=netU*shFc/100;cumM+=netU*shMc/100;divOps+=netU*(shFc+shMc)/100}
   } else if(netU<0){perd+=-netU;if(perd>g('cxWC'))wcFlag=true}
   if(bal<=0&&recM<0){recM=m}
   labels.push(monthLabel(m));
   serBal.push(Math.max(0,Math.round(bal)));
   serOps.push(Math.round(divOps));
+  serN.push(Math.round(cumN));serF.push(Math.round(cumF));serM.push(Math.round(cumM));
  }
  $('kCapex').textContent=fmtU(capex);
  $('kCapex').style.color=capex>g('capRef')?'#ff6b6b':'';
@@ -312,8 +348,24 @@ function recalc(){
  $('kNeto').textContent=stab?fmtU(stab.net/fx):'—';
  if(recM>=0){$('kRec').textContent=monthLabel(recM);$('kRecS').textContent=(recM-A)+' meses después de la apertura'}
  else{$('kRec').textContent='No recupera';$('kRecS').textContent='dentro del horizonte proyectado'}
- var opsYr=stab?stab.net/fx*12*(g('shF')+g('shM'))/100:0;
+ var opsYr=stab?stab.net/fx*12*(shFc+shMc)/100:0;
  $('kOps').textContent=fmtU(opsYr);
+ var bp=$('buypanel');
+ var brow=function(l,v){return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--dim)">'+l+'</span><span style="font-variant-numeric:tabular-nums">'+v+'</span></div>'};
+ if(cliffM<0){bp.innerHTML='<span style="color:var(--dim)">El cliff no ocurre dentro del horizonte proyectado — estirá el horizonte para simular la compra.</span>'}
+ else if(buyInfo){
+  var html=brow('Mes de compra efectivo (post-cliff automático)',monthLabel(buyInfo.mes))
+    +brow('EBITDA últimos 12 meses',fmtU(buyInfo.eb12))
+    +brow('Valuación ('+g('mult')+'x EBITDA)',fmtU(buyInfo.val));
+  if(buyInfo.bF+buyInfo.bM>0){
+   if(buyInfo.bF>0)html+=brow('Compra Fede ('+buyInfo.bF+'%)',fmtU(buyInfo.cF));
+   if(buyInfo.bM>0)html+=brow('Compra Marro ('+buyInfo.bM+'%)',fmtU(buyInfo.cM));
+   html+=brow('Participaciones resultantes','Nico '+shNc.toFixed(1)+'% · Fede '+shFc.toFixed(1)+'% · Marro '+shMc.toFixed(1)+'%');
+  } else {
+   html+='<div style="padding:6px 0;color:var(--dim)">Sin compra configurada — cargá un % en "Compra Fede/Marro" para simularla. La plata de la compra va de ustedes a Nico, no entra a la empresa.</div>';
+  }
+  bp.innerHTML=html;
+ } else {bp.innerHTML='<span style="color:var(--dim)">La compra se ejecuta recién después del cliff.</span>'}
  var tl=[['Firma',monthLabel(0),false],['Apertura',monthLabel(A),false],['Cliff',cliffM>=0?monthLabel(cliffM):'—',false],['Recupero',recM>=0?monthLabel(recM):'—',recM>=0]];
  $('timeline').innerHTML=tl.map(function(t){return '<span class="tchip'+(t[2]?' hot':'')+'">'+t[0]+' <b>'+t[1]+'</b></span>'}).join('<span style="color:var(--border);align-self:center">→</span>');
  var wb=$('warnbox'),msgs=[];
@@ -349,6 +401,15 @@ function recalc(){
     plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return (ctx.datasetIndex===0?'Saldo Nico: ':'Dividendos ops: ')+fmtU(ctx.parsed.y)}}}},
     scales:{y:{ticks:{color:tickCol,callback:function(v){return 'US$'+Math.round(v/1000)+'k'}},grid:{color:gridCol}},x:{ticks:{color:tickCol,maxTicksLimit:10},grid:{display:false}}}}});
  } else {pb.data.labels=labels;pb.data.datasets[0].data=serBal;pb.data.datasets[1].data=serOps;pb.update('none')}
+ if(!soc){
+  soc=new Chart($('soc'),{type:'line',data:{labels:labels,datasets:[
+    {data:serN,borderColor:'#a29bfe',borderWidth:2,pointRadius:0,fill:false,tension:.2},
+    {data:serF,borderColor:'#00cec9',borderWidth:2,pointRadius:0,fill:false,tension:.2},
+    {data:serM,borderColor:'#feca57',borderWidth:2,pointRadius:0,fill:false,tension:.2,borderDash:[5,4]}]},
+   options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){var names=['Nico: ','Fede: ','Marro: '];return names[ctx.datasetIndex]+fmtU(ctx.parsed.y)}}}},
+    scales:{y:{ticks:{color:tickCol,callback:function(v){return 'US$'+Math.round(v/1000)+'k'}},grid:{color:gridCol}},x:{ticks:{color:tickCol,maxTicksLimit:10},grid:{display:false}}}}});
+ } else {soc.data.labels=labels;soc.data.datasets[0].data=serN;soc.data.datasets[1].data=serF;soc.data.datasets[2].data=serM;soc.update('none')}
 }
 
 document.querySelectorAll('input').forEach(function(el){
