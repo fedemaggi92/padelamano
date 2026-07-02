@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pádel La Mano — Simulador PnL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0F1519; --card:#161E24; --card2:#1C2630; --line:#26333D;
+  --txt:#E8EDF0; --mut:#8FA1AC; --faint:#5F7280;
+  --blue:#4C9BE8; --green:#6FBF73; --red:#E06056; --amber:#E8A33D;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Space Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px 60px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;padding:26px 0 6px;border-bottom:1px solid var(--line)}
+header h1{font-size:22px;font-weight:700;letter-spacing:.04em}
+header .sub{color:var(--mut);font-size:13px}
+header button{margin-left:auto;background:transparent;color:var(--blue);border:1px solid var(--blue);border-radius:8px;padding:7px 14px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}
+header button:hover{background:rgba(76,155,232,.12)}
+.warn{display:none;background:rgba(224,96,86,.12);border:1px solid rgba(224,96,86,.45);color:#F3A69F;border-radius:10px;padding:10px 14px;font-size:13.5px;margin:16px 0 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:20px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-top:2px solid var(--blue);border-radius:10px;padding:14px 16px}
+.kpi .l{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px}
+.kpi .v{font-size:22px;font-weight:700}
+.kpi .s{font-size:12px;color:var(--faint);display:block;margin-top:2px}
+.charts{display:grid;grid-template-columns:1fr;gap:16px;margin:8px 0 24px}
+@media(min-width:860px){.charts{grid-template-columns:1fr 1fr}}
+.chartcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.chartcard h2{font-size:13px;font-weight:500;color:var(--mut);margin-bottom:10px}
+.cv{position:relative;width:100%;height:300px}
+.leg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--mut);margin-bottom:8px}
+.leg span{display:flex;align-items:center;gap:5px}
+.leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin:14px 0}
+.sec h2{font-size:14px;font-weight:700;letter-spacing:.03em;margin-bottom:14px;color:var(--txt)}
+.sec h2 small{color:var(--faint);font-weight:400;font-size:12px;margin-left:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px 14px}
+.f label{display:block;font-size:11.5px;color:var(--mut);margin-bottom:4px}
+.f input[type=number],.f input[type=month]{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-family:inherit;font-size:14px;padding:8px 10px;outline:none}
+.f input:focus{border-color:var(--blue)}
+.sl{display:flex;align-items:center;gap:10px}
+.sl input[type=range]{flex:1;accent-color:var(--blue);height:22px}
+.sl output{font-size:14px;font-weight:700;min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+footer{color:var(--faint);font-size:12px;line-height:1.7;margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--blue);color:var(--txt);border-radius:10px;padding:10px 18px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .25s}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>PÁDEL LA MANO</h1>
+  <span class="sub">Simulador PnL · payback · sociedad</span>
+  <button id="share" type="button">Copiar link del escenario</button>
+</header>
+
+<div class="warn" id="warnbox"></div>
+
+<div class="kpis">
+  <div class="kpi"><span class="l">Capex total</span><span class="v" id="kCapex">—</span><span class="s" id="kCapexS"></span></div>
+  <div class="kpi"><span class="l">Neto estabilizado</span><span class="v" id="kNeto">—</span><span class="s">por mes, después de impuestos</span></div>
+  <div class="kpi"><span class="l">Recupero de Nico</span><span class="v" id="kRec">—</span><span class="s" id="kRecS"></span></div>
+  <div class="kpi"><span class="l">Fede + Marro post-recupero</span><span class="v" id="kOps">—</span><span class="s">dividendos por año, además del sueldo</span></div>
+</div>
+
+<div class="charts">
+  <div class="chartcard">
+    <h2>Cascada del mes estabilizado (USD)</h2>
+    <div class="cv"><canvas id="wf" role="img" aria-label="Cascada mensual: ingresos menos impuestos y costos hasta el resultado neto">Cascada mensual de resultados.</canvas></div>
+  </div>
+  <div class="chartcard">
+    <h2>Recupero de la inversión (USD)</h2>
+    <div class="leg">
+      <span><i style="background:#4C9BE8"></i>Saldo pendiente de Nico</span>
+      <span><i style="background:#6FBF73"></i>Dividendos acumulados Fede + Marro</span>
+    </div>
+    <div class="cv"><canvas id="pb" role="img" aria-label="Evolución mensual del saldo pendiente del inversor y de los dividendos acumulados de los operadores">Evolución del saldo del inversor.</canvas></div>
+  </div>
+</div>
+
+<div class="sec"><h2>Macro y sociedad</h2><div class="grid">
+  <div class="f"><label>Tipo de cambio ARS/USD</label><input type="number" id="fx" value="1450"></div>
+  <div class="f"><label>Interés anual Nico (%)</label><input type="number" id="tasa" value="6"></div>
+  <div class="f"><label>Cliff (meses desde apertura)</label><input type="number" id="cliff" value="24"></div>
+  <div class="f"><label>Nico post-cliff (%)</label><input type="number" id="shN" value="80"></div>
+  <div class="f"><label>Fede (%)</label><input type="number" id="shF" value="10"></div>
+  <div class="f"><label>Marro (%)</label><input type="number" id="shM" value="10"></div>
+  <div class="f"><label>Capital de referencia (USD)</label><input type="number" id="capRef" value="200000"></div>
+</div></div>
+
+<div class="sec"><h2>Cronograma</h2><div class="grid">
+  <div class="f"><label>Mes de firma</label><input type="month" id="firma" value="2026-08"></div>
+  <div class="f"><label>Meses de trámites (sin gastos)</label><input type="number" id="mTram" value="1"></div>
+  <div class="f"><label>Meses de gracia / obra</label><input type="number" id="mGracia" value="3"></div>
+  <div class="f"><label>Meses pre-apertura pagando todo</label><input type="number" id="mPre" value="0"></div>
+  <div class="f"><label>Expensas + servicios en obra (ARS/mes)</label><input type="number" id="gObra" value="1500000"></div>
+  <div class="f"><label>Horizonte post-apertura (meses)</label><input type="number" id="horiz" value="48"></div>
+</div></div>
+
+<div class="sec"><h2>Capex <small>USD</small></h2><div class="grid">
+  <div class="f"><label>Obra civil</label><input type="number" id="cxObra" value="80000"></div>
+  <div class="f"><label>Demolición</label><input type="number" id="cxDemo" value="0"></div>
+  <div class="f"><label>Cancha pádel (c/u)</label><input type="number" id="cxCancha" value="23000"></div>
+  <div class="f"><label>Cancha pickleball (c/u)</label><input type="number" id="cxPk" value="12000"></div>
+  <div class="f"><label>Cama pilates (c/u)</label><input type="number" id="cxCama" value="1250"></div>
+  <div class="f"><label>Mobiliario y bar</label><input type="number" id="cxMob" value="30000"></div>
+  <div class="f"><label>SRL + habilitaciones</label><input type="number" id="cxHab" value="4300"></div>
+  <div class="f"><label>Marketing lanzamiento</label><input type="number" id="cxMkt" value="4000"></div>
+  <div class="f"><label>Capital de trabajo</label><input type="number" id="cxWC" value="40000"></div>
+  <div class="f"><label>Imprevistos (% s/ obra+canchas)</label><input type="number" id="cxImp" value="10"></div>
+</div></div>
+
+<div class="sec"><h2>Canchas de pádel</h2><div class="grid">
+  <div class="f"><label>Cantidad de canchas</label><input type="number" id="nPadel" value="3"></div>
+  <div class="f"><label>Precio peak L-V (ARS)</label><input type="number" id="pPeak" value="66000"></div>
+  <div class="f"><label>Precio off-peak (ARS)</label><input type="number" id="pOff" value="55000"></div>
+  <div class="f"><label>Precio finde (ARS)</label><input type="number" id="pFds" value="66000"></div>
+  <div class="f"><label>Turnos peak/día</label><input type="number" id="tPeak" value="4"></div>
+  <div class="f"><label>Turnos off-peak/día</label><input type="number" id="tOff" value="7"></div>
+  <div class="f"><label>Turnos finde/día</label><input type="number" id="tFds" value="11"></div>
+  <div class="f"><label>Días hábiles/mes</label><input type="number" id="dHab" value="22"></div>
+  <div class="f"><label>Días de finde/mes</label><input type="number" id="dFds" value="8"></div>
+</div>
+<div class="grid" style="margin-top:14px">
+  <div class="f"><label>Ocupación peak objetivo</label><div class="sl"><input type="range" id="oPeak" min="0" max="100" step="5" value="80"><output id="oPeakV">80%</output></div></div>
+  <div class="f"><label>Ocupación off-peak</label><div class="sl"><input type="range" id="oOff" min="0" max="100" step="5" value="60"><output id="oOffV">60%</output></div></div>
+  <div class="f"><label>Ocupación finde</label><div class="sl"><input type="range" id="oFds" min="0" max="100" step="5" value="70"><output id="oFdsV">70%</output></div></div>
+  <div class="f"><label>Ocupación inicial (% del objetivo)</label><div class="sl"><input type="range" id="rampF0" min="0" max="100" step="5" value="40"><output id="rampF0V">40%</output></div></div>
+  <div class="f"><label>Meses hasta estabilizar</label><input type="number" id="rampM" value="6"></div>
+</div></div>
+
+<div class="sec"><h2>Pickleball <small>opcional</small></h2><div class="grid">
+  <div class="f"><label>Cantidad de canchas</label><input type="number" id="nPk" value="0"></div>
+  <div class="f"><label>Turnos/día</label><input type="number" id="tPk" value="14"></div>
+  <div class="f"><label>Precio turno (ARS)</label><input type="number" id="pPk" value="22000"></div>
+  <div class="f"><label>Ocupación</label><div class="sl"><input type="range" id="oPk" min="0" max="100" step="5" value="55"><output id="oPkV">55%</output></div></div>
+</div></div>
+
+<div class="sec"><h2>Torneos y eventos</h2><div class="grid">
+  <div class="f"><label>Torneos/mes</label><input type="number" id="trN" value="4"></div>
+  <div class="f"><label>Jugadores por torneo</label><input type="number" id="trJ" value="24"></div>
+  <div class="f"><label>Inscripción (ARS/jugador)</label><input type="number" id="trI" value="20000"></div>
+  <div class="f"><label>% a premios y costos</label><input type="number" id="trP" value="40"></div>
+  <div class="f"><label>Turnos de cancha por torneo</label><input type="number" id="trT" value="10"></div>
+  <div class="f"><label>% jugadores que consumen</label><input type="number" id="trC" value="80"></div>
+  <div class="f"><label>Ticket bar torneo (ARS)</label><input type="number" id="trTk" value="15000"></div>
+</div></div>
+
+<div class="sec"><h2>Bar / cafetería</h2><div class="grid">
+  <div class="f"><label>% jugadores que consumen</label><input type="number" id="bC" value="25"></div>
+  <div class="f"><label>Ticket promedio (ARS)</label><input type="number" id="bTk" value="10000"></div>
+  <div class="f"><label>Costo mercadería (%)</label><input type="number" id="bCogs" value="35"></div>
+</div></div>
+
+<div class="sec"><h2>Sala pilates y complementaria</h2><div class="grid">
+  <div class="f"><label>Camas (va al capex)</label><input type="number" id="piCamas" value="6"></div>
+  <div class="f"><label>Horas alquiladas/día</label><input type="number" id="piH" value="4"></div>
+  <div class="f"><label>Días/mes</label><input type="number" id="piD" value="26"></div>
+  <div class="f"><label>Precio hora sala (ARS)</label><input type="number" id="piP" value="30000"></div>
+  <div class="f"><label>Sala complementaria (ARS/mes)</label><input type="number" id="salaX" value="0"></div>
+</div></div>
+
+<div class="sec"><h2>Otros ingresos</h2><div class="grid">
+  <div class="f"><label>Shop (ARS/mes)</label><input type="number" id="shop" value="1000000"></div>
+  <div class="f"><label>COGS shop (%)</label><input type="number" id="shopC" value="55"></div>
+</div></div>
+
+<div class="sec"><h2>Costos fijos mensuales</h2><div class="grid">
+  <div class="f"><label>Alquiler (USD/mes)</label><input type="number" id="alq" value="6000"></div>
+  <div class="f"><label>Expensas (ARS)</label><input type="number" id="exp" value="0"></div>
+  <div class="f"><label>Sueldos Fede + Marro (ARS)</label><input type="number" id="sOp" value="8000000"></div>
+  <div class="f"><label>Sueldos empleados (ARS)</label><input type="number" id="sEmp" value="4000000"></div>
+  <div class="f"><label>Electricidad (ARS)</label><input type="number" id="elec" value="2400000"></div>
+  <div class="f"><label>Agua/gas/internet/alarma (ARS)</label><input type="number" id="serv" value="500000"></div>
+  <div class="f"><label>Mantenimiento (ARS)</label><input type="number" id="mant" value="350000"></div>
+  <div class="f"><label>Marketing (ARS)</label><input type="number" id="mkt" value="900000"></div>
+  <div class="f"><label>Abono plataforma (ARS)</label><input type="number" id="plat" value="85000"></div>
+  <div class="f"><label>Seguros (ARS)</label><input type="number" id="seg" value="350000"></div>
+  <div class="f"><label>Contaduría (ARS)</label><input type="number" id="cont" value="300000"></div>
+  <div class="f"><label>Software / tecnología (ARS)</label><input type="number" id="soft" value="180000"></div>
+  <div class="f"><label>Otros fijos (ARS)</label><input type="number" id="otros" value="300000"></div>
+</div></div>
+
+<div class="sec"><h2>Costos variables e impuestos</h2><div class="grid">
+  <div class="f"><label>Comisión plataforma reservas (%)</label><input type="number" id="vPlat" value="3"></div>
+  <div class="f"><label>Comisión medios de pago (%)</label><input type="number" id="vPago" value="3"></div>
+  <div class="f"><label>Consumibles canchas (ARS/mes)</label><input type="number" id="vCons" value="200000"></div>
+  <div class="f"><label>IIBB (% s/ ingresos)</label><input type="number" id="iibb" value="3.5"></div>
+  <div class="f"><label>Ganancias (% s/ resultado)</label><input type="number" id="gan" value="35"></div>
+</div></div>
+
+<footer>
+Supuestos del modelo: todo en pesos de hoy, convertido a USD al tipo de cambio de arriba. El saldo de Nico arranca en el capex total, capitaliza el interés anual compuesto mensualizado, y se amortiza con el 100% de la ganancia neta hasta el cliff y con su porcentaje después. Los torneos descuentan turnos de finde de la capacidad vendible. Ganancias se calcula como porcentaje plano sobre el resultado positivo del mes, sin depreciación — es conservador. Los parámetros viajan en la URL: tocá "Copiar link del escenario" y mandalo por WhatsApp.
+</footer>
+
+</div>
+<div class="toast" id="toast">Link copiado</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+var $=function(id){return document.getElementById(id)};
+var g=function(id){var v=parseFloat($(id).value);return isNaN(v)?0:v};
+var fmtU=function(v){return (v<0?'-':'')+'US$ '+Math.round(Math.abs(v)).toLocaleString('es-AR')};
+var wf=null,pb=null;
+var IDS=['fx','tasa','cliff','shN','shF','shM','capRef','firma','mTram','mGracia','mPre','gObra','horiz','cxObra','cxDemo','cxCancha','cxPk','cxCama','cxMob','cxHab','cxMkt','cxWC','cxImp','nPadel','pPeak','pOff','pFds','tPeak','tOff','tFds','dHab','dFds','oPeak','oOff','oFds','rampF0','rampM','nPk','tPk','pPk','oPk','trN','trJ','trI','trP','trT','trC','trTk','bC','bTk','bCogs','piCamas','piH','piD','piP','salaX','shop','shopC','alq','exp','sOp','sEmp','elec','serv','mant','mkt','plat','seg','cont','soft','otros','vPlat','vPago','vCons','iibb','gan'];
+
+function loadURL(){
+  var q=new URLSearchParams(location.search);
+  IDS.forEach(function(id){if(q.has(id)){$(id).value=q.get(id)}});
+}
+function saveURL(){
+  var q=new URLSearchParams();
+  IDS.forEach(function(id){q.set(id,$(id).value)});
+  history.replaceState(null,'','?'+q.toString());
+}
+function monthLabel(off){
+  var p=($('firma').value||'2026-08').split('-');
+  var d=new Date(parseInt(p[0]),parseInt(p[1])-1+off,1);
+  var m=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return m[d.getMonth()]+' '+String(d.getFullYear()).slice(2);
+}
+
+function recalc(){
+ ['oPeak','oOff','oFds','rampF0','oPk'].forEach(function(id){$(id+'V').textContent=Math.round(g(id))+'%'});
+ var fx=g('fx')||1;
+ var capexBase=g('cxObra')+g('cxDemo')+g('nPadel')*g('cxCancha')+g('nPk')*g('cxPk');
+ var capex=capexBase+g('piCamas')*g('cxCama')+g('cxMob')+g('cxHab')+g('cxMkt')+g('cxWC')+capexBase*g('cxImp')/100;
+ var A=g('mTram')+g('mGracia')+g('mPre');
+ var total=A+Math.max(1,g('horiz'));
+ var r=Math.pow(1+g('tasa')/100,1/12)-1;
+ var alqARS=g('alq')*fx;
+ var fijos=alqARS+g('exp')+g('sOp')+g('sEmp')+g('elec')+g('serv')+g('mant')+g('mkt')+g('plat')+g('seg')+g('cont')+g('soft')+g('otros');
+ var bal=capex,cliffDone=false,recM=-1,divOps=0,perd=0,wcFlag=false,stab=null;
+ var labels=[],serBal=[],serOps=[];
+ for(var m=0;m<total;m++){
+  var netARS=0;
+  if(m<g('mTram')){netARS=0}
+  else if(m<g('mTram')+g('mGracia')){netARS=-g('gObra')}
+  else if(m<A){netARS=-(g('gObra')+alqARS)}
+  else{
+   var k=m-A;
+   var f=g('rampM')>0?Math.min(1,g('rampF0')/100+(1-g('rampF0')/100)*(k+1)/g('rampM')):1;
+   var oP=Math.min(1,g('oPeak')/100*f),oO=Math.min(1,g('oOff')/100*f),oF=Math.min(1,g('oFds')/100*f);
+   var capPeak=g('tPeak')*g('dHab')*g('nPadel'),capOff=g('tOff')*g('dHab')*g('nPadel'),capFds=g('tFds')*g('dFds')*g('nPadel');
+   var trTurnos=Math.min(capFds,g('trN')*g('trT'));
+   var occP=capPeak*oP,occO=capOff*oO,occF=(capFds-trTurnos)*oF;
+   var ingCan=occP*g('pPeak')+occO*g('pOff')+occF*g('pFds');
+   var occPk=g('nPk')*g('tPk')*(g('dHab')+g('dFds'))*Math.min(1,g('oPk')/100*f);
+   var ingPk=occPk*g('pPk');
+   var ingTr=g('trN')*g('trJ')*g('trI')*(1-g('trP')/100)*f;
+   var ingBar=((occP+occO+occF+occPk)*4*g('bC')/100*g('bTk')+g('trN')*g('trJ')*g('trC')/100*g('trTk'))*Math.min(1,f);
+   var ingPi=g('piH')*g('piD')*g('piP');
+   var ingShop=g('shop')*f;
+   var ing=ingCan+ingPk+ingTr+ingBar+ingPi+g('salaX')+ingShop;
+   var vars=g('vPlat')/100*(ingCan+ingPk)+g('vPago')/100*ing+g('bCogs')/100*ingBar+g('shopC')/100*ingShop+g('vCons');
+   var iibb=g('iibb')/100*ing;
+   var ebitda=ing-vars-fijos-iibb;
+   var imp=ebitda>0?g('gan')/100*ebitda:0;
+   netARS=ebitda-imp;
+   if(k===Math.round(g('rampM'))||(stab===null&&m===total-1)){stab={ing:ing,vars:vars,fijos:fijos,iibb:iibb,ebitda:ebitda,imp:imp,net:netARS}}
+  }
+  var netU=netARS/fx;
+  bal=bal*(1+r);
+  if(m>=A&&!cliffDone){if((m-A)>=g('cliff')||bal<=0){cliffDone=true}}
+  if(netU>0&&m>=A){
+   if(!cliffDone){bal-=netU}
+   else{bal-=netU*g('shN')/100;divOps+=netU*(g('shF')+g('shM'))/100}
+  } else if(netU<0){perd+=-netU;if(perd>g('cxWC'))wcFlag=true}
+  if(bal<=0&&recM<0){recM=m}
+  labels.push(monthLabel(m));
+  serBal.push(Math.max(0,Math.round(bal)));
+  serOps.push(Math.round(divOps));
+ }
+ $('kCapex').textContent=fmtU(capex);
+ $('kCapex').style.color=capex>g('capRef')?'#E06056':'';
+ $('kCapexS').textContent='referencia: '+fmtU(g('capRef'));
+ $('kNeto').textContent=stab?fmtU(stab.net/fx):'—';
+ if(recM>=0){$('kRec').textContent=monthLabel(recM);$('kRecS').textContent=(recM-A)+' meses después de la apertura ('+monthLabel(A)+')'}
+ else{$('kRec').textContent='No recupera';$('kRecS').textContent='dentro del horizonte proyectado'}
+ var opsYr=stab?stab.net/fx*12*(g('shF')+g('shM'))/100:0;
+ $('kOps').textContent=fmtU(opsYr);
+ var wb=$('warnbox'),msgs=[];
+ if(capex>g('capRef'))msgs.push('El capex total ('+fmtU(capex)+') supera el capital de referencia de '+fmtU(g('capRef'))+'.');
+ if(wcFlag)msgs.push('Las pérdidas acumuladas superan el capital de trabajo: haría falta un capital call.');
+ if(msgs.length){wb.style.display='block';wb.textContent=msgs.join(' ')}else{wb.style.display='none'}
+ if(!window.Chart||!stab)return;
+ var s={ing:stab.ing/fx,iibb:stab.iibb/fx,vars:stab.vars/fx,fijos:stab.fijos/fx,ebitda:stab.ebitda/fx,imp:stab.imp/fx,net:stab.net/fx};
+ var c1=s.ing,c2=c1-s.iibb,c3=c2-s.vars,c4=c3-s.fijos;
+ var data=[[0,c1],[c2,c1],[c3,c2],[c4,c3],[0,s.ebitda],[s.ebitda-s.imp,s.ebitda],[0,s.net]];
+ data=data.map(function(p){return [Math.round(Math.min(p[0],p[1])),Math.round(Math.max(p[0],p[1]))]});
+ var cols=['#4C9BE8','#E06056','#E06056','#E06056',s.ebitda>=0?'#6FBF73':'#E06056','#E8A33D',s.net>=0?'#6FBF73':'#E06056'];
+ var wfLabels=['Ingresos','− IIBB','− Variables','− Fijos','EBITDA','− Ganancias','Neto'];
+ var tickCol='#8FA1AC',gridCol='rgba(143,161,172,.15)';
+ if(!wf){
+  wf=new Chart($('wf'),{type:'bar',data:{labels:wfLabels,datasets:[{data:data,backgroundColor:cols,borderRadius:4,barThickness:20}]},
+   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){var p=ctx.raw;return fmtU(p[1]-p[0])}}}},
+    scales:{x:{ticks:{color:tickCol,callback:function(v){return 'US$'+Math.round(v/1000)+'k'}},grid:{color:gridCol}},y:{ticks:{color:tickCol},grid:{display:false}}}}});
+ } else {wf.data.datasets[0].data=data;wf.data.datasets[0].backgroundColor=cols;wf.update('none')}
+ if(!pb){
+  pb=new Chart($('pb'),{type:'line',data:{labels:labels,datasets:[
+    {data:serBal,borderColor:'#4C9BE8',backgroundColor:'rgba(76,155,232,.10)',fill:true,borderWidth:2,pointRadius:0,tension:.2},
+    {data:serOps,borderColor:'#6FBF73',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false,tension:.2}]},
+   options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return (ctx.datasetIndex===0?'Saldo Nico: ':'Dividendos ops: ')+fmtU(ctx.parsed.y)}}}},
+    scales:{y:{ticks:{color:tickCol,callback:function(v){return 'US$'+Math.round(v/1000)+'k'}},grid:{color:gridCol}},x:{ticks:{color:tickCol,maxTicksLimit:10},grid:{display:false}}}}});
+ } else {pb.data.labels=labels;pb.data.datasets[0].data=serBal;pb.data.datasets[1].data=serOps;pb.update('none')}
+}
+
+document.querySelectorAll('input').forEach(function(el){
+  el.addEventListener('input',function(){recalc();saveURL()});
+});
+$('share').addEventListener('click',function(){
+  var url=location.href;
+  var done=function(){var t=$('toast');t.classList.add('on');setTimeout(function(){t.classList.remove('on')},1800)};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(done,function(){prompt('Copiá el link:',url)})}
+  else{prompt('Copiá el link:',url)}
+});
+loadURL();
+recalc();
+saveURL();
+</script>
+</body>
+</html>
