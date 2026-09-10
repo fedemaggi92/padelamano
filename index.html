@@ -66,7 +66,7 @@ footer{color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(
 <header>
   <div>
     <h1>Pádel La Mano</h1>
-    <p>Simulador PnL · cash flow · payback del inversor · Centenario 641, San Isidro</p>
+    <p>Simulador PnL · cash flow · payback del inversor · Pinto 3800, Saavedra</p>
   </div>
   <button id="share" type="button">Copiar link del escenario</button>
 </header>
@@ -112,6 +112,17 @@ footer{color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(
     <div class="field"><label>Marketing lanzamiento</label><input type="number" id="cxMkt" value="4000"></div>
     <div class="field"><label>Capital de trabajo</label><input type="number" id="cxWC" value="40000"></div>
     <div class="field"><label>Imprevistos (% s/ obra+canchas)</label><input type="number" id="cxImp" value="10"></div>
+  </div></div>
+
+  <div class="card"><h2><span class="icon">🔑</span>Costos de ingreso al inmueble</h2><div class="fgrid">
+    <div class="field"><label>Plazo del contrato (años)</label><input type="number" id="plazoC" value="10"></div>
+    <div class="field"><label>Comisión inmobiliaria (meses)</label><input type="number" id="comMeses" value="2"></div>
+    <div class="field"><label>Garantía</label><select id="garModo"><option value="deposito">Depósito en efectivo</option><option value="caucion">Seguro de caución</option><option value="propietaria">Garantía propietaria</option></select></div>
+    <div class="field"><label>Meses de garantía exigidos</label><input type="number" id="depMeses" value="2"></div>
+    <div class="field"><label>Prima caución (% anual)</label><input type="number" id="cauPct" value="10"></div>
+    <div class="field"><label>Sellos (% s/ total contrato)</label><input type="number" id="selloPct" value="0.5"></div>
+    <div class="field"><label>Sellos a nuestro cargo (%)</label><input type="number" id="selloMio" value="50"></div>
+    <div class="field"><label>Escribanía y certificaciones (USD)</label><input type="number" id="cxEsc" value="800"></div>
   </div></div>
 
   <div class="card"><h2><span class="icon">🎾</span>Canchas de pádel</h2><div class="fgrid">
@@ -208,6 +219,12 @@ footer{color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(
   </div>
 
   <div class="card">
+    <h2><span class="icon" style="background:var(--yellow);color:#1a1d27">🔑</span>Costos de ingreso al inmueble</h2>
+    <div id="ingbox" style="font-size:13px"></div>
+    <div class="note">El depósito se recupera al final del contrato, pero sale de la caja el día uno. Los sellos van sobre el total del contrato: si la renovación es automática, AGIP suma el período renovado a la base.</div>
+  </div>
+
+  <div class="card">
     <h2><span class="icon" style="background:var(--green)">〓</span>Composición de ingresos (mes estabilizado)</h2>
     <div id="breakdown"></div>
   </div>
@@ -257,7 +274,7 @@ var $=function(id){return document.getElementById(id)};
 var g=function(id){var v=parseFloat($(id).value);return isNaN(v)?0:v};
 var fmtU=function(v){return (v<0?'-':'')+'US$ '+Math.round(Math.abs(v)).toLocaleString('es-AR')};
 var wf=null,pb=null,soc=null;
-var IDS=['fx','tasa','cliff','shN','shF','shM','capRef','firma','mTram','mGracia','mPre','gObra','horiz','cxObra','cxDemo','cxCancha','cxPk','cxCama','cxMob','cxHab','cxMkt','cxWC','cxImp','nPadel','pPeak','pOff','pFds','tPeak','tOff','tFds','dHab','dFds','oPeak','oOff','oFds','rampF0','rampM','nPk','tPk','pPk','oPk','trN','trJ','trI','trP','trT','trC','trTk','bC','bTk','bCogs','piCamas','piH','piD','piP','salaX','shop','shopC','alq','exp','sOp','sEmp','elec','serv','mant','mkt','plat','seg','cont','soft','otros','vPlat','vPago','vCons','iibb','gan','amortA','mult','buyMes','buyF','buyM'];
+var IDS=['fx','tasa','cliff','shN','shF','shM','capRef','firma','mTram','mGracia','mPre','gObra','horiz','cxObra','cxDemo','cxCancha','cxPk','cxCama','cxMob','cxHab','cxMkt','cxWC','cxImp','plazoC','comMeses','garModo','depMeses','cauPct','selloPct','selloMio','cxEsc','nPadel','pPeak','pOff','pFds','tPeak','tOff','tFds','dHab','dFds','oPeak','oOff','oFds','rampF0','rampM','nPk','tPk','pPk','oPk','trN','trJ','trI','trP','trT','trC','trTk','bC','bTk','bCogs','piCamas','piH','piD','piP','salaX','shop','shopC','alq','exp','sOp','sEmp','elec','serv','mant','mkt','plat','seg','cont','soft','otros','vPlat','vPago','vCons','iibb','gan','amortA','mult','buyMes','buyF','buyM'];
 
 function loadURL(){
   var q=new URLSearchParams(location.search);
@@ -279,8 +296,15 @@ function recalc(){
  ['oPeak','oOff','oFds','rampF0','oPk'].forEach(function(id){$(id+'V').textContent=Math.round(g(id))+'%'});
  var fx=g('fx')||1;
  var capexBase=g('cxObra')+g('cxDemo')+g('nPadel')*g('cxCancha')+g('nPk')*g('cxPk');
- var capex=capexBase+g('piCamas')*g('cxCama')+g('cxMob')+g('cxHab')+g('cxMkt')+g('cxWC')+capexBase*g('cxImp')/100;
- var amortBase=Math.max(0,capex-g('cxWC'));
+ var capexObra=capexBase+g('piCamas')*g('cxCama')+g('cxMob')+g('cxHab')+g('cxMkt')+g('cxWC')+capexBase*g('cxImp')/100;
+ var gar=$('garModo').value, alqU=g('alq');
+ var cIngCom=alqU*g('comMeses');
+ var cIngDep=gar==='deposito'?alqU*g('depMeses'):0;
+ var cIngCau=gar==='caucion'?alqU*g('depMeses')*g('cauPct')/100:0;
+ var cIngSel=alqU*g('plazoC')*12*g('selloPct')/100*g('selloMio')/100;
+ var ingreso=cIngCom+cIngDep+cIngCau+cIngSel+g('cxEsc');
+ var capex=capexObra+ingreso;
+ var amortBase=Math.max(0,capexObra-g('cxWC'));
  var amortM=g('amortA')>0?amortBase/(g('amortA')*12)*fx:0;
  var A=g('mTram')+g('mGracia')+g('mPre');
  var total=A+Math.max(1,g('horiz'));
@@ -348,7 +372,15 @@ function recalc(){
  }
  $('kCapex').textContent=fmtU(capex);
  $('kCapex').style.color=capex>g('capRef')?'#ff6b6b':'';
- $('kCapexS').textContent='referencia: '+fmtU(g('capRef'));
+ $('kCapexS').textContent='incluye '+fmtU(ingreso)+' de ingreso · ref. '+fmtU(g('capRef'));
+ var bd=[['Comisión inmobiliaria ('+g('comMeses')+' meses)',cIngCom],
+   ['Depósito en garantía ('+g('depMeses')+' meses, recuperable)',cIngDep],
+   ['Prima seguro de caución (primer año)',cIngCau],
+   ['Sellos ('+g('selloPct')+'% s/ '+g('plazoC')+' años, '+g('selloMio')+'% a cargo nuestro)',cIngSel],
+   ['Escribanía y certificaciones',g('cxEsc')]].filter(function(l){return l[1]>0});
+ $('ingbox').innerHTML=bd.map(function(l){
+   return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--dim)">'+l[0]+'</span><span style="font-variant-numeric:tabular-nums">'+fmtU(l[1])+'</span></div>';
+ }).join('')+'<div style="display:flex;justify-content:space-between;padding:8px 0 0"><b>Total costos de ingreso</b><b style="font-variant-numeric:tabular-nums">'+fmtU(ingreso)+'</b></div>';
  $('kNeto').textContent=stab?fmtU(stab.net/fx):'—';
  if(recM>=0){$('kRec').textContent=monthLabel(recM);$('kRecS').textContent=(recM-A)+' meses después de la apertura'}
  else{$('kRec').textContent='No recupera';$('kRecS').textContent='dentro del horizonte proyectado'}
@@ -416,7 +448,7 @@ function recalc(){
  } else {soc.data.labels=labels;soc.data.datasets[0].data=serN;soc.data.datasets[1].data=serF;soc.data.datasets[2].data=serM;soc.update('none')}
 }
 
-document.querySelectorAll('input').forEach(function(el){
+document.querySelectorAll('input,select').forEach(function(el){
   el.addEventListener('input',function(){recalc();saveURL()});
 });
 $('share').addEventListener('click',function(){
