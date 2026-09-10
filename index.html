@@ -189,6 +189,7 @@ footer{color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(
     <div class="field"><label>Consumibles canchas (ARS/mes)</label><input type="number" id="vCons" value="200000"></div>
     <div class="field"><label>IIBB (% s/ ingresos)</label><input type="number" id="iibb" value="3.5"></div>
     <div class="field"><label>Ganancias (% s/ resultado)</label><input type="number" id="gan" value="35"></div>
+    <div class="field"><label>Amortización capex (años)</label><input type="number" id="amortA" value="10"></div>
   </div></div>
 
 </div>
@@ -244,7 +245,7 @@ footer{color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(
 </div>
 
 <footer>
-Supuestos del modelo: todo en pesos de hoy, convertido a USD al tipo de cambio de arriba. El saldo de Nico arranca en el capex total, capitaliza el interés anual compuesto mensualizado, y se amortiza con el 100% de la ganancia neta hasta el cliff y con su porcentaje después. Los torneos descuentan turnos de finde de la capacidad vendible. Ganancias se calcula como porcentaje plano sobre el resultado positivo del mes, sin depreciación — es conservador. Los parámetros viajan en la URL: "Copiar link del escenario" y lo compartís con tu escenario cargado.
+Supuestos del modelo: todo en pesos de hoy, convertido a USD al tipo de cambio de arriba. El saldo de Nico arranca en el capex total, capitaliza el interés anual compuesto mensualizado, y se amortiza con el 100% de la ganancia neta hasta el cliff y con su porcentaje después. Los torneos descuentan turnos de finde de la capacidad vendible. Ganancias se calcula sobre el resultado del mes neto de amortización del capex (la amortización es sólo escudo fiscal: descuenta impuesto, no sale de la caja). La base amortizable excluye el capital de trabajo. Si ponés 0 años, se apaga el escudo. La sala de pilates sólo genera ingresos si cargaste camas, y sigue la misma curva de rampa que el resto. Los parámetros viajan en la URL: "Copiar link del escenario" y lo compartís con tu escenario cargado.
 </footer>
 
 </div>
@@ -256,7 +257,7 @@ var $=function(id){return document.getElementById(id)};
 var g=function(id){var v=parseFloat($(id).value);return isNaN(v)?0:v};
 var fmtU=function(v){return (v<0?'-':'')+'US$ '+Math.round(Math.abs(v)).toLocaleString('es-AR')};
 var wf=null,pb=null,soc=null;
-var IDS=['fx','tasa','cliff','shN','shF','shM','capRef','firma','mTram','mGracia','mPre','gObra','horiz','cxObra','cxDemo','cxCancha','cxPk','cxCama','cxMob','cxHab','cxMkt','cxWC','cxImp','nPadel','pPeak','pOff','pFds','tPeak','tOff','tFds','dHab','dFds','oPeak','oOff','oFds','rampF0','rampM','nPk','tPk','pPk','oPk','trN','trJ','trI','trP','trT','trC','trTk','bC','bTk','bCogs','piCamas','piH','piD','piP','salaX','shop','shopC','alq','exp','sOp','sEmp','elec','serv','mant','mkt','plat','seg','cont','soft','otros','vPlat','vPago','vCons','iibb','gan','mult','buyMes','buyF','buyM'];
+var IDS=['fx','tasa','cliff','shN','shF','shM','capRef','firma','mTram','mGracia','mPre','gObra','horiz','cxObra','cxDemo','cxCancha','cxPk','cxCama','cxMob','cxHab','cxMkt','cxWC','cxImp','nPadel','pPeak','pOff','pFds','tPeak','tOff','tFds','dHab','dFds','oPeak','oOff','oFds','rampF0','rampM','nPk','tPk','pPk','oPk','trN','trJ','trI','trP','trT','trC','trTk','bC','bTk','bCogs','piCamas','piH','piD','piP','salaX','shop','shopC','alq','exp','sOp','sEmp','elec','serv','mant','mkt','plat','seg','cont','soft','otros','vPlat','vPago','vCons','iibb','gan','amortA','mult','buyMes','buyF','buyM'];
 
 function loadURL(){
   var q=new URLSearchParams(location.search);
@@ -279,6 +280,8 @@ function recalc(){
  var fx=g('fx')||1;
  var capexBase=g('cxObra')+g('cxDemo')+g('nPadel')*g('cxCancha')+g('nPk')*g('cxPk');
  var capex=capexBase+g('piCamas')*g('cxCama')+g('cxMob')+g('cxHab')+g('cxMkt')+g('cxWC')+capexBase*g('cxImp')/100;
+ var amortBase=Math.max(0,capex-g('cxWC'));
+ var amortM=g('amortA')>0?amortBase/(g('amortA')*12)*fx:0;
  var A=g('mTram')+g('mGracia')+g('mPre');
  var total=A+Math.max(1,g('horiz'));
  var r=Math.pow(1+g('tasa')/100,1/12)-1;
@@ -304,13 +307,14 @@ function recalc(){
    var ingPk=occPk*g('pPk');
    var ingTr=g('trN')*g('trJ')*g('trI')*(1-g('trP')/100)*f;
    var ingBar=((occP+occO+occF+occPk)*4*g('bC')/100*g('bTk')+g('trN')*g('trJ')*g('trC')/100*g('trTk'))*Math.min(1,f);
-   var ingPi=g('piH')*g('piD')*g('piP');
+   var ingPi=g('piCamas')>0?g('piH')*g('piD')*g('piP')*f:0;
    var ingShop=g('shop')*f;
    var ing=ingCan+ingPk+ingTr+ingBar+ingPi+g('salaX')+ingShop;
    var vars=g('vPlat')/100*(ingCan+ingPk)+g('vPago')/100*ing+g('bCogs')/100*ingBar+g('shopC')/100*ingShop+g('vCons');
    var iibb=g('iibb')/100*ing;
    var ebitda=ing-vars-fijos-iibb;
-   var imp=ebitda>0?g('gan')/100*ebitda:0;
+   var baseGan=ebitda-amortM;
+   var imp=baseGan>0?g('gan')/100*baseGan:0;
    netARS=ebitda-imp;
    ebHist.push(ebitda/fx);
    if(k===Math.round(g('rampM'))||(stab===null&&m===total-1)){
